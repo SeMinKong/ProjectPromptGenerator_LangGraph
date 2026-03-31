@@ -4,6 +4,9 @@
 
 AI와 대화하며 프로젝트의 각 설계 영역(UI/UX, 아키텍처, DB, API, 배포, 테스트)을 병렬로 설계하고, 각 영역별 고도화된 AI 프롬프트를 자동 생성하는 웹 애플리케이션입니다.
 
+## 🚀 Live Demo
+[projectpromptgeneratorlanggraph-production.up.railway.app](https://projectpromptgeneratorlanggraph-production.up.railway.app)
+
 **Powered by [LangGraph](https://github.com/langchain-ai/langgraph) + [Upstage Solar Pro](https://console.upstage.ai)**
 
 ## 주요 기능
