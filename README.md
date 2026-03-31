@@ -1,5 +1,7 @@
 # 프로젝트 설계 프롬프트 생성기 (Project Design Prompt Generator)
 
+> 이 프로젝트는 [SeMinKong/PromptGenerator_LangGraph](https://github.com/SeMinKong/PromptGenerator_LangGraph)의 이전 버전을 기반으로 고도화되었습니다.
+
 AI와 대화하며 프로젝트의 각 설계 영역(UI/UX, 아키텍처, DB, API, 배포, 테스트)을 병렬로 설계하고, 각 영역별 고도화된 AI 프롬프트를 자동 생성하는 웹 애플리케이션입니다.
 
 **Powered by [LangGraph](https://github.com/langchain-ai/langgraph) + [Upstage Solar Pro](https://console.upstage.ai)**
