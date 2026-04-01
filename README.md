@@ -2,9 +2,9 @@
 
 **[English Version](./README.en.md)**
 
-# Project Name
+### Live Demo
 
-[![Live Demo](https://img.shields.io/badge/demo-online-green.svg)](https://projectpromptgeneratorlanggraph-production.up.railway.app/)
+[![Live Demo](https://img.shields.io/badge/demo-online-green.svg)](https://projectpromptgeneratorlanggraph-production.up.railway.app/) << 클릭
 
 **LangGraph**와 **Upstage Solar Pro**를 활용하여 소프트웨어 프로젝트의 설계를 자동화하고 최적화된 프롬프트를 생성하는 플랫폼입니다. 사용자와의 구조화된 대화를 통해 UI/UX, 아키텍처, 데이터베이스 등 각 설계 영역을 세밀하게 분석하고, 즉시 구현 가능한 수준의 AI 프롬프트를 자동으로 도출합니다.
 
