@@ -60,5 +60,8 @@ uvicorn server.app:app --reload
 3. **대화 진행**: 각 탭을 이동하며 AI의 질문에 답변하여 설계를 구체화합니다.
 4. **결과 활용**: 생성된 최종 설계 문서를 복사하여 ChatGPT, Claude 등 선호하는 LLM에 입력하고 구현을 시작하세요.
 
+> 💡 **더 자세한 정보가 필요하신가요?**
+> 상세한 LangGraph 상태 머신 설계, WebSocket 프로토콜 명세 등은 [상세 매뉴얼(DETAILS.md)](./DETAILS.md)에서 확인하실 수 있습니다.
+
 ---
 LangGraph & Upstage Solar Pro로 구축한 프로젝트입니다.

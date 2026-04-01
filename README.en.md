@@ -60,5 +60,8 @@ Open `http://localhost:8000` to start designing.
 3. **Engage in Dialogue**: Answer the AI's specialized questions in each tab.
 4. **Export Result**: Copy the final integrated design document and feed it to your favorite LLM for implementation.
 
+> 💡 **Need more details?**
+> For advanced configurations, internal state structures, and WebSocket protocols, please refer to the [Detailed Manual (DETAILS.en.md)](./DETAILS.en.md).
+
 ---
 Built with ❤️ using LangGraph & Upstage Solar.
