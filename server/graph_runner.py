@@ -1,5 +1,6 @@
 """Dimension turn runner for WebSocket handler."""
 import asyncio
+import logging
 from typing import Callable, Awaitable
 
 from dimensions.runner import run_dimension_turn, extract_prompt
@@ -12,6 +13,8 @@ from server.ws_handler import (
     make_final_document,
     make_error,
 )
+
+logger = logging.getLogger(__name__)
 
 SendFn = Callable[[str], Awaitable[None]]
 
@@ -52,7 +55,8 @@ async def handle_dimension_turn(
             current_round=new_round,
             api_key=api_key,
         )
-    except Exception as e:
+    except (RuntimeError, ValueError, OSError) as e:
+        logger.error("LLM error for dimension %s: %s", dimension_id, e)
         await send(make_error(f"LLM 오류 ({dim['name']}): {e}"))
         await store.update_dimension(session_id, dimension_id, {"status": "pending", "round": new_round - 1})
         return
@@ -116,5 +120,6 @@ async def handle_finalize(state: dict, send: SendFn, api_key: str) -> None:
             [SystemMessage(content=system), HumanMessage(content=user_content)]
         )
         await send(make_final_document(response.content))
-    except Exception as e:
+    except (RuntimeError, ValueError, OSError) as e:
+        logger.error("Final document generation error: %s", e)
         await send(make_error(f"최종 문서 생성 오류: {e}"))

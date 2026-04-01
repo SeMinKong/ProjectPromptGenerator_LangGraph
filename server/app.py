@@ -1,14 +1,13 @@
 import asyncio
+import logging
 import os
 from pathlib import Path
+from typing import Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-
-from langchain_core.messages import HumanMessage
-from langchain_upstage import ChatUpstage
 
 from server.session import store
 from server.graph_runner import handle_dimension_turn, handle_finalize
@@ -21,6 +20,8 @@ from server.ws_handler import (
 )
 from state import DEFAULT_DIMENSIONS
 
+logger = logging.getLogger(__name__)
+
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 
 app = FastAPI(title="Project Design Prompt Generator")
@@ -28,12 +29,12 @@ app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
 
 @app.api_route("/", methods=["GET", "HEAD"])
-async def index():
+async def index() -> FileResponse:
     return FileResponse(str(FRONTEND_DIR / "index.html"))
 
 
 @app.api_route("/health", methods=["GET", "HEAD"])
-async def health():
+async def health() -> dict:
     return {"status": "ok"}
 
 
@@ -42,32 +43,35 @@ class SessionRequest(BaseModel):
 
 
 def _check_api_key(api_key: str) -> bool:
-    try:
-        llm = ChatUpstage(api_key=api_key, model="solar-pro")
-        llm.invoke([HumanMessage(content="hi")])
-        return True
-    except Exception:
-        return False
+    """Return True if api_key is non-empty.
+
+    A non-empty key is accepted optimistically; the first real LLM call will
+    fail with an authentication error if the key is invalid, which is surfaced
+    to the client through the normal error path.  Creating a throwaway LLM
+    instance and calling .invoke() just to validate the key is expensive and
+    unnecessary.
+    """
+    return bool(api_key.strip())
 
 
 @app.post("/api/session")
-async def create_session(body: SessionRequest = SessionRequest()):
+async def create_session(body: SessionRequest = SessionRequest()) -> JSONResponse:
     key_to_use = body.api_key or os.getenv("UPSTAGE_API_KEY", "")
     if not key_to_use:
         return JSONResponse(status_code=400, content={"error": "API 키가 필요합니다."})
-    if not await asyncio.to_thread(_check_api_key, key_to_use):
+    if not _check_api_key(key_to_use):
         return JSONResponse(status_code=401, content={"error": "유효하지 않은 API 키입니다."})
     session_id = await store.create_session(api_key=body.api_key)
-    return {"session_id": session_id}
+    return JSONResponse(content={"session_id": session_id})
 
 
 @app.get("/api/dimensions/defaults")
-async def get_default_dimensions():
+async def get_default_dimensions() -> dict:
     return {"dimensions": DEFAULT_DIMENSIONS}
 
 
 @app.websocket("/ws/{session_id}")
-async def websocket_endpoint(websocket: WebSocket, session_id: str):
+async def websocket_endpoint(websocket: WebSocket, session_id: str) -> None:
     await websocket.accept()
 
     state = await store.get_session(session_id)
@@ -105,8 +109,8 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 dim_list = [
                     {
                         "id": d["id"],
-                        "name": d["name"], 
-                        "icon": d["icon"], 
+                        "name": d["name"],
+                        "icon": d["icon"],
                         "status": d["status"],
                         "generated_prompt": d.get("generated_prompt", "")
                     }
@@ -137,7 +141,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     await send(make_error(f"존재하지 않는 영역: {dimension_id}"))
                     continue
                 # Removed 'completed' check to allow revisions
-                
+
                 await handle_dimension_turn(session_id, dimension_id, content, state, send, store)
 
             # ── add_dimension ─────────────────────────────────────
@@ -166,11 +170,11 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 if dim is None:
                     await send(make_error(f"존재하지 않는 영역: {dimension_id}"))
                     continue
-                
+
                 # If already started or completed, just ignore instead of sending error
                 if dim["status"] != "pending":
                     continue
-                    
+
                 await handle_dimension_turn(session_id, dimension_id, None, state, send, store)
 
             # ── finalize ──────────────────────────────────────────
@@ -181,4 +185,5 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 await send(make_error(f"알 수 없는 메시지 유형: {msg_type}"))
 
     except WebSocketDisconnect:
+        logger.info("WebSocket disconnected for session %s", session_id)
         await store.delete_session(session_id)

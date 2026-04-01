@@ -1,8 +1,11 @@
 import json
+import logging
 from typing import Any
 
+logger = logging.getLogger(__name__)
 
-def _msg(**kwargs) -> str:
+
+def _msg(**kwargs: Any) -> str:
     return json.dumps({k: v for k, v in kwargs.items() if v is not None})
 
 

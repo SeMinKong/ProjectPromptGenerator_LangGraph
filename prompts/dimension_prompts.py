@@ -1,5 +1,10 @@
 """System prompts for each design dimension."""
 
+# MAX_ROUNDS controls how many conversation turns the agent takes before
+# generating its final design prompt.  3 rounds strikes a balance between
+# gathering enough context from the user (rounds 1-2 ask clarifying questions)
+# and keeping the interaction concise (round 3 produces the output).
+# Increase this value if you want more back-and-forth before finalisation.
 MAX_ROUNDS = 3
 
 BASE_INSTRUCTIONS = """

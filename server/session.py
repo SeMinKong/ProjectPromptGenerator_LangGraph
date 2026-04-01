@@ -1,8 +1,11 @@
 import asyncio
+import logging
 import uuid
 from typing import Optional
 
 from state import ProjectState, make_project_state, make_dimension_state
+
+logger = logging.getLogger(__name__)
 
 
 class SessionStore:
@@ -14,6 +17,7 @@ class SessionStore:
         session_id = str(uuid.uuid4())
         async with self._lock:
             self._sessions[session_id] = make_project_state(api_key)
+        logger.debug("Created session %s", session_id)
         return session_id
 
     async def get_session(self, session_id: str) -> Optional[ProjectState]:
@@ -24,7 +28,12 @@ class SessionStore:
         async with self._lock:
             self._sessions[session_id] = state
 
-    async def init_project(self, session_id: str, project_description: str, dimension_configs: list) -> Optional[ProjectState]:
+    async def init_project(
+        self,
+        session_id: str,
+        project_description: str,
+        dimension_configs: list,
+    ) -> Optional[ProjectState]:
         async with self._lock:
             session = self._sessions.get(session_id)
             if session is None:
@@ -53,7 +62,12 @@ class SessionStore:
             session["dimensions"].pop(dimension_id, None)
             return True
 
-    async def update_dimension(self, session_id: str, dimension_id: str, dim_state: dict) -> None:
+    async def update_dimension(
+        self,
+        session_id: str,
+        dimension_id: str,
+        dim_state: dict,
+    ) -> None:
         async with self._lock:
             session = self._sessions.get(session_id)
             if session and dimension_id in session["dimensions"]:
@@ -62,6 +76,7 @@ class SessionStore:
     async def delete_session(self, session_id: str) -> None:
         async with self._lock:
             self._sessions.pop(session_id, None)
+        logger.debug("Deleted session %s", session_id)
 
 
 store = SessionStore()

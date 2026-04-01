@@ -1,9 +1,12 @@
 """Per-dimension conversation runner."""
 import asyncio
+import logging
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from llm import get_llm
 from prompts.dimension_prompts import get_system_prompt, MAX_ROUNDS
+
+logger = logging.getLogger(__name__)
 
 GENERATE_TAG = "[GENERATE_PROMPT]"
 
@@ -50,8 +53,9 @@ async def run_dimension_turn(
         )))
 
     llm = get_llm(api_key)
+    logger.debug("Running dimension turn: id=%s round=%d", dimension_id, current_round)
     response = await asyncio.to_thread(llm.invoke, messages)
-    content = response.content
+    content: str = response.content
 
     # Strict completion condition: Only complete if tag is present AND it's the final round
     is_completed = (GENERATE_TAG in content) and is_final_round
