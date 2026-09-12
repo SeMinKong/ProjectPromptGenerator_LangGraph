@@ -1,71 +1,110 @@
-# Project Design Prompt Generator (LangGraph)
+# Project Design Prompt Generator
 
-**[한국어 버전](./README.md)**
+**[한국어](./README.md) · [Technical details](./DETAILS.en.md) · [Web portfolio](https://seminkong.github.io/SeMinKong_Web/work/project-prompt-generator/)**
+
+A web tool that develops a project idea through separate conversations about UI/UX, architecture, database, API, deployment, and testing, then combines the available results into a Markdown design document.
+
+This is an individual project covering the conversation server, per-domain state management, web UI, and final document generation. Python, FastAPI, and WebSocket connect the server and UI; LangChain's `ChatUpstage` calls Solar Pro.
 
 ### Live Demo
 
-[![Live Demo](https://img.shields.io/badge/demo-online-green.svg)](https://projectpromptgeneratorlanggraph-production.up.railway.app/) << CLICK
+[![Live Demo](https://img.shields.io/badge/demo-open-blue.svg)](https://projectpromptgeneratorlanggraph-production.up.railway.app/)
 
-An advanced AI-driven design platform built with **LangGraph** and **Upstage Solar Pro**. This tool orchestrates a structured dialogue across multiple software design dimensions to automatically generate comprehensive, implementation-ready AI prompts for your next project.
+<img width="1184" height="531" alt="Original planning diagram for the project design generator" src="https://github.com/user-attachments/assets/544fb920-d9ec-48fb-ae9d-02ec5c374bfb" />
 
-## Key Features
+This is an early planning image. The implementation and source links below describe the current runtime. LangGraph remains in the repository name and dependencies, but the public server calls custom state-management functions and does not construct or execute a `StateGraph`.
 
-- **Parallel Graph Architecture**: Leverages **LangGraph** to manage 6+ design dimensions (UI/UX, Architecture, DB, API, etc.) simultaneously.
-- **Multi-round Iterative Dialogue**: Each dimension conducts up to 3 rounds of specialized Q&A to refine project requirements.
-- **Automated Prompt Engineering**: Translates conversation history into high-quality, structured prompts for LLMs (ChatGPT, Claude, etc.).
-- **Real-time Synchronization**: Powered by **FastAPI** and **WebSockets** for live status updates and instant prompt previews.
-- **Extensible Dimensions**: Easily add custom design perspectives (e.g., Security, DevOps) to fit specific project needs.
+## What I built
 
-## Tech Stack
+| Area | Implementation |
+| --- | --- |
+| Domain context | Domain instructions, project description, that domain's history, and new input form each LLM request |
+| Initial questions | `asyncio.gather` starts the selected domains' first questions in parallel |
+| LLM boundary | `asyncio.to_thread` runs synchronous `llm.invoke` outside the event-loop thread |
+| State and revisions | `pending / in_progress / completed`, round, history, generated result, and further messages after completion |
+| Document generation | A separate LLM call combines domains with a stored result and the project description |
+| Web UI | Domain selection/addition, conversation tabs, progress, preview/copy, resizable panels and text |
 
-- **AI Orchestration**: LangGraph, LangChain
-- **LLM**: Upstage Solar Pro
-- **Backend**: FastAPI, WebSocket
-- **Frontend**: Vanilla JS, HTML5, CSS3
-- **DevOps**: Docker
+```mermaid
+flowchart LR
+    UI[Web UI] -->|REST session| API[FastAPI]
+    UI <-->|WebSocket| API
+    API --> State[In-memory session and domain states]
+    API --> Runner[Per-domain message assembly]
+    Runner -->|to_thread| LLM[LangChain / Solar Pro]
+    LLM --> Runner
+    Runner --> State
+    State -->|Domains with generated results| Final[Final document call]
+    Final --> LLM
+```
 
-## Project Structure
+## Design decisions
+
+**Separate context per domain.** Every call shares the project description but receives only its own domain's conversation history. Initial parallel questions and later revisions use the same state model.
+
+**A successful response is not necessarily completion.** The first question counts as round 1. Completion requires both `round >= 3` and `[GENERATE_PROMPT]` in the response. Three is a generation threshold, not a maximum number of turns. A successful response without the tag is recorded while the domain remains `in_progress`.
+
+**Restore selected state on handled errors.** On `RuntimeError`, `ValueError`, or `OSError`, the server restores the previous round and sets `pending`. Server history is appended only after a successful call. An earlier generated result remains available if a revision fails.
+
+**Allow partial synthesis.** Final generation selects domains with a non-empty `generated_prompt`, regardless of their current status. One result is sufficient; the all-domains-complete event is a separate UI notification.
+
+[Technical details](./DETAILS.en.md) document state transitions, protocol messages, edge cases, and source references.
+
+## Stack and structure
+
+- Python 3.11, FastAPI, WebSocket
+- LangChain Core, LangChain Upstage, Solar Pro (`solar-pro`)
+- HTML, CSS, JavaScript
+- Docker runtime configuration
 
 ```text
-├── server/             # FastAPI & WebSocket handlers
-├── dimensions/         # LLM logic per design dimension
-├── prompts/            # System prompts & round configurations
-├── frontend/           # Interactive 3-panel web UI
-└── state.py            # LangGraph state definitions
+server/app.py               REST/WebSocket endpoints and initial parallel calls
+server/graph_runner.py      Turn handling, state changes, final generation
+server/session.py           In-memory session store
+server/ws_handler.py        Message parsing and response shapes
+dimensions/runner.py        Message assembly, LLM call, completion check
+prompts/dimension_prompts.py Domain and final-document instructions
+state.py                    Six default domains and TypedDict state
+llm.py                      ChatUpstage model construction
+frontend/                   Conversation and preview UI
 ```
 
-## Technical Highlights
+## Quick start
 
-### 1. State-Machine Based Dialogue
-Using LangGraph's state management, I implemented a robust "Turn-based" system where each design dimension tracks its own message history, current round, and completion status independently. This allows for complex, multi-agent-like behavior without the overhead of full agents.
+Requires Python 3.11+ and an [Upstage API Key](https://console.upstage.ai/).
 
-### 2. Parallel Processing with WebSockets
-To avoid long wait times, all design dimensions are initialized and processed in parallel. As the LLM generates questions or final prompts, the server pushes updates to the client via WebSockets, ensuring a highly responsive user experience.
-
-## Quick Start
-
-### Prerequisites
-- Python 3.11+
-- [Upstage API Key](https://console.upstage.ai/)
-
-### Installation & Run
 ```bash
-git clone <repository-url>
+git clone https://github.com/SeMinKong/ProjectPromptGenerator_LangGraph.git
 cd ProjectPromptGenerator_LangGraph
-pip install -r requirements.txt
-echo "UPSTAGE_API_KEY=your_key_here" > .env
-uvicorn server.app:app --reload
+python -m venv .venv
+# macOS / Linux
+source .venv/bin/activate
+# Windows PowerShell: .\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python -m uvicorn server.app:app --reload
 ```
-Open `http://localhost:8000` to start designing.
 
-## How to Use
-1. **Enter Project Idea**: Describe what you want to build.
-2. **Select Dimensions**: Choose the design areas you want to focus on.
-3. **Engage in Dialogue**: Answer the AI's specialized questions in each tab.
-4. **Export Result**: Copy the final integrated design document and feed it to your favorite LLM for implementation.
+Open `http://localhost:8000` and enter the API key in the startup dialog. The current UI passes it to session creation. Creating a `.env` file alone does not load it automatically; the steps above use UI key entry. Session creation checks that a key is non-empty; actual authentication happens during the LLM call.
 
->  **Need more details?**
-> For advanced configurations, internal state structures, and WebSocket protocols, please refer to the [Detailed Manual (DETAILS.en.md)](./DETAILS.en.md).
+With Docker:
 
----
-Built with  using LangGraph & Upstage Solar.
+```bash
+docker build -t project-prompt-generator .
+docker run --rm -p 8000:8000 project-prompt-generator
+```
+
+## How to use
+
+1. Enter the API key, describe the project, and select design domains.
+2. Answer each domain's questions in its tab after the initial questions arrive.
+3. Review generated results, send further revisions, or add a custom domain.
+4. Once a result exists, request the integrated Markdown document and copy it.
+
+## Evidence and limitations
+
+- This description follows [implementation `1972aa05`](https://github.com/SeMinKong/ProjectPromptGenerator_LangGraph/tree/1972aa05d5caca05869a6ba588bf4b7573a7f678). Completion tags do not measure document quality or requirements coverage.
+- Sessions live in server memory and are deleted on WebSocket disconnect. Refresh, reconnect, and server restart recovery are not implemented.
+- There is no automatic retry or full transaction rollback. A prior result retained after a failed revision can still enter final synthesis.
+- No quantitative evaluation of generated quality, requirements coverage, or response latency is reported. Evaluation cases and persistence/recovery policies remain future work.
+
+Developed by [Se Min Kong](https://github.com/SeMinKong).
